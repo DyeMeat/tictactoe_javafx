@@ -12,6 +12,8 @@ import javafx.stage.Stage;
 import java.io.*;
 import java.net.Socket;
 import java.util.Random;
+import javafx.animation.PauseTransition;
+import javafx.util.Duration;
 
 public class App extends Application {
 
@@ -26,6 +28,7 @@ public class App extends Application {
     private static boolean isGameFinished = false;
     private Stage gameStage;
     private int port = 2715;
+    private boolean isFirstGame = true;
 
     @Override
     public void start(Stage primaryStage) {
@@ -34,6 +37,7 @@ public class App extends Application {
 
     private void showSettingsDialog() {
         Stage settingsStage = new Stage();
+        settingsStage.setTitle("Tic-tac-toe: New game");
 
         VBox vbox = new VBox(10);
         vbox.setAlignment(Pos.CENTER);
@@ -80,6 +84,9 @@ public class App extends Application {
     }
 
     private void initializeGame() {
+        if (!isFirstGame) {
+            out.println("SIZE " + boardSize);
+        }
         gameStage = new Stage();
         GridPane pane = new GridPane();
         buttons = new Button[boardSize][boardSize];
@@ -109,10 +116,13 @@ public class App extends Application {
 
         Scene scene = new Scene(pane, 100 * boardSize, 100 * boardSize);
         gameStage.setScene(scene);
-        gameStage.setTitle("Tic Tac Toe");
+        gameStage.setTitle("Tic-tac-toe");
         gameStage.show();
 
-        startServer();
+        if (isFirstGame) {
+            System.out.println("Starting server");
+            startServer();
+        }
     }
 
     private void handleButtonClick(Button button, int row, int col) {
@@ -120,15 +130,13 @@ public class App extends Application {
             button.setText(String.valueOf(currentPlayer));
             board[row][col] = currentPlayer;
             out.println("MOVE " + currentPlayer + " " + row + " " + col);
-
-            if (!isGameFinished) {
-                return;
-            }
-
             currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
-            if (playerVsComputer && currentPlayer == 'O' && !isGameFinished) {
-                computerMove();
-            }
+        }
+        if (!isGameFinished && playerVsComputer && currentPlayer == 'O' && !isBoardFull()) {
+            computerMove();
+            // PauseTransition pause = new PauseTransition(Duration.seconds(0.1));
+            // pause.setOnFinished(event -> computerMove());
+            // pause.play();
         }
     }
 
@@ -144,9 +152,7 @@ public class App extends Application {
         board[row][col] = 'O';
         out.println("MOVE O " + row + " " + col);
 
-        if (!isGameFinished) {
-            currentPlayer = 'X';
-        }
+        currentPlayer = 'X';
     }
 
     private void startServer() {
@@ -186,8 +192,13 @@ public class App extends Application {
 
     private void showEndGameDialog(String message) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setContentText(message);
-
+        alert.setTitle("Game over!");
+        if (message.contains("DRAW")) {
+            alert.setHeaderText("It's a draw!");
+        } else {
+            String[] winMessage =  message.split(" ");
+            alert.setHeaderText("Player \"" + winMessage[1] + "\" wins!");
+        }
         ButtonType replayButton = new ButtonType("Replay");
         ButtonType newGameButton = new ButtonType("New Game");
         ButtonType closeButton = new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
@@ -199,19 +210,21 @@ public class App extends Application {
                 resetGame();
                 System.out.println("Game restarted");
             } else if (type == newGameButton) {
+                resetGame();
                 showSettingsDialog();
                 if (gameStage != null) {
                     gameStage.close();
                 }
                 System.out.println("New game");
-                resetGame();
             }
         });
     }
 
     private void resetGame() {
-        board = new char[boardSize][boardSize];
+        isFirstGame = false;
+        isGameFinished = false;
         currentPlayer = 'X';
+        board = new char[boardSize][boardSize];
         Platform.runLater(() -> {
             for (int i = 0; i < boardSize; i++) {
                 for (int j = 0; j < boardSize; j++) {
@@ -219,6 +232,20 @@ public class App extends Application {
                 }
             }
         });
+        System.out.println("Player vs Computer: " + playerVsComputer);
+        System.out.println("Is first game: " + isFirstGame);
+        out.println("SIZE " + boardSize);
+    }
+
+    private boolean isBoardFull() {
+        for (int i = 0; i < boardSize; i++) {
+            for (int j = 0; j < boardSize; j++) {
+                if (board[i][j] == '\0') {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     public static void main(String[] args) {

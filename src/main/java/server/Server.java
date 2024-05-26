@@ -26,6 +26,7 @@ public class Server {
                 if (message[0].equals("SIZE")) {
                     boardSize = Integer.parseInt(message[1]);
                     board = new char[boardSize][boardSize];
+                    currentPlayer = 'X';
                     initializeBoard();
                     out.println("SIZE " + boardSize);
                 } else if (message[0].equals("MOVE")) {
