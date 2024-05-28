@@ -130,13 +130,13 @@ public class App extends Application {
             button.setText(String.valueOf(currentPlayer));
             board[row][col] = currentPlayer;
             out.println("MOVE " + currentPlayer + " " + row + " " + col);
+            if (isPlayerWon(currentPlayer, row, col) || isGameFinished) {
+                return;
+            }
             currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
         }
-        if (!isGameFinished && playerVsComputer && currentPlayer == 'O' && !isBoardFull()) {
+        if (playerVsComputer && currentPlayer == 'O' && !isBoardFull()) {
             computerMove();
-            // PauseTransition pause = new PauseTransition(Duration.seconds(0.1));
-            // pause.setOnFinished(event -> computerMove());
-            // pause.play();
         }
     }
 
@@ -148,9 +148,9 @@ public class App extends Application {
             col = rand.nextInt(boardSize);
         } while (board[row][col] != '\0');
 
+        out.println("MOVE O " + row + " " + col);
         buttons[row][col].setText("O");
         board[row][col] = 'O';
-        out.println("MOVE O " + row + " " + col);
 
         currentPlayer = 'X';
     }
@@ -168,26 +168,30 @@ public class App extends Application {
 
                 while (true) {
                     String response = in.readLine();
-                    System.out.println(response);
-                    if (response.startsWith("MOVE")) {
-                        Platform.runLater(() -> {
-                            String[] parts = response.split(" ");
-                            char player = parts[1].charAt(0);
-                            int row = Integer.parseInt(parts[2]);
-                            int col = Integer.parseInt(parts[3]);
-                            buttons[row][col].setText(String.valueOf(player));
-                            board[row][col] = player;
-                            currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
-                        });
-                    } else if (response.startsWith("WIN") || response.startsWith("DRAW")) {
-                        isGameFinished = true;
-                        Platform.runLater(() -> showEndGameDialog(response));
-                    }
+                    handleServerResponse(response);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }).start();
+    }
+
+    private void handleServerResponse(String response) {
+        System.out.println(response);
+        if (response.startsWith("MOVE")) {
+            Platform.runLater(() -> {
+                String[] parts = response.split(" ");
+                char player = parts[1].charAt(0);
+                int row = Integer.parseInt(parts[2]);
+                int col = Integer.parseInt(parts[3]);
+                buttons[row][col].setText(String.valueOf(player));
+                board[row][col] = player;
+                // currentPlayer = (currentPlayer == 'X') ? 'O' : 'X';
+            });
+        } else if (response.startsWith("WIN") || response.startsWith("DRAW")) {
+            isGameFinished = true;
+            Platform.runLater(() -> showEndGameDialog(response));
+        }
     }
 
     private void showEndGameDialog(String message) {
@@ -196,12 +200,12 @@ public class App extends Application {
         if (message.contains("DRAW")) {
             alert.setHeaderText("It's a draw!");
         } else {
-            String[] winMessage =  message.split(" ");
+            String[] winMessage = message.split(" ");
             alert.setHeaderText("Player \"" + winMessage[1] + "\" wins!");
         }
         ButtonType replayButton = new ButtonType("Replay");
         ButtonType newGameButton = new ButtonType("New Game");
-        ButtonType closeButton = new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
+        ButtonType closeButton = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
 
         alert.getButtonTypes().setAll(replayButton, newGameButton, closeButton);
 
@@ -216,6 +220,10 @@ public class App extends Application {
                     gameStage.close();
                 }
                 System.out.println("New game");
+            } else if (type == closeButton) {
+                if (gameStage != null) {
+                    gameStage.close();
+                }
             }
         });
     }
@@ -245,7 +253,56 @@ public class App extends Application {
                 }
             }
         }
+        isGameFinished = true;
         return true;
+    }
+
+    private boolean isPlayerWon(char player, int row, int col) {
+        // Проверка строки
+        for (int i = 0; i < boardSize; i++) {
+            if (board[row][i] != player) {
+                break;
+            }
+            if (i == boardSize - 1) {
+                return true;
+            }
+        }
+
+        // Проверка столбца
+        for (int i = 0; i < boardSize; i++) {
+            if (board[i][col] != player) {
+                break;
+            }
+            if (i == boardSize - 1) {
+                return true;
+            }
+        }
+
+        // Проверка главной диагонали
+        if (row == col) {
+            for (int i = 0; i < boardSize; i++) {
+                if (board[i][i] != player) {
+                    break;
+                }
+                if (i == boardSize - 1) {
+                    return true;
+                }
+            }
+        }
+
+        // Проверка побочной диагонали
+        if (row + col == boardSize - 1) {
+            for (int i = 0; i < boardSize; i++) {
+                if (board[i][(boardSize - 1) - i] != player) {
+                    break;
+                }
+                if (i == boardSize - 1) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public static void main(String[] args) {
